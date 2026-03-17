@@ -1,3 +1,14 @@
+
+    // ================= הגדרות מערכת =================
+    const CONFIG = {
+        YOUTUBE_API_KEY: 'AIzaSyClbzreAS3p3pzS16vpjgb41KAKIHL5Vtk', // <--- מפתח יוטיוב
+        SUPABASE_URL: 'https://rqeluyixgdepgjubersr.supabase.co',       // <--- כתובת מסד הנתונים
+        SUPABASE_KEY: 'sb_publishable_VmT1Idb6Ze1OPYOdBLugPA_VzhSVglQ',  // <--- מפתח מסד הנתונים
+        MAX_CONCURRENT_CHECKS: 5                 // מקסימום בדיקות במקביל
+    };
+
+
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -5,21 +16,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>חיפוש וידאו מסונן - מערכת חכמה</title>
     
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-P4CSM96PSL"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <!-- Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P4CSM96PSL"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-P4CSM96PSL');
+    </script>
 
-  gtag('config', 'G-P4CSM96PSL');
-</script>
-
+    <!-- YouTube Iframe API -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <style>
         /* עיצוב זכוכית מודרני ואנימציות */
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-bg: rgba(255, 255, 255, 0.85);
             --glass-border: rgba(255, 255, 255, 0.4);
             --primary: #2563eb;
             --primary-hover: #1d4ed8;
@@ -28,33 +40,27 @@
             --text-main: #1e293b;
         }
 
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
             background-attachment: fixed;
             min-height: 100vh;
             margin: 0;
-            padding: 30px 15px;
+            padding: 20px;
             color: var(--text-main);
         }
 
-        .container {
-            max-width: 1200px;
-            margin: auto;
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        }
-
-        .header { text-align: center; margin-bottom: 40px; }
+        .header { text-align: center; margin-bottom: 30px; }
         .header h1 { margin: 0 0 10px 0; font-size: 2.5em; color: #111827; }
         .header p { margin: 0; color: #4b5563; font-size: 1.1em; }
 
-        .search-area { display: flex; gap: 15px; margin-bottom: 40px; }
+        /* אזור החיפוש */
+        .search-area { 
+            display: flex; gap: 15px; margin: 0 auto 30px auto; 
+            max-width: 800px;
+        }
         input {
             flex: 1; padding: 16px 25px; border: 2px solid transparent;
             border-radius: 16px; font-size: 18px; outline: none;
@@ -71,85 +77,180 @@
         button:hover { background: var(--primary-hover); transform: translateY(-2px); }
         button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        .grid-title { display: flex; align-items: center; gap: 12px; margin-top: 50px; padding-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.05); }
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 25px; margin-top: 25px; }
-
-        .video-card {
-            background: rgba(255, 255, 255, 0.9); border-radius: 20px; overflow: hidden;
-            transition: transform 0.3s, box-shadow 0.3s; position: relative;
-            border: 1px solid rgba(255,255,255,0.5); cursor: pointer;
-            animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        /* מבנה חדש: חלוקה לסרגל צד ואזור מרכזי */
+        .layout-wrapper {
+            display: flex;
+            gap: 25px;
+            max-width: 1400px;
+            margin: auto;
+            align-items: flex-start;
         }
-        .video-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.12); }
+
+        /* סרגל צד - בבדיקה */
+        .sidebar {
+            flex: 0 0 320px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            display: none; /* יוסתר עד שיהיה חיפוש */
+        }
+        
+        /* אזור מרכזי - פתוחים וחסומים */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            display: none; /* יוסתר עד שיהיה חיפוש */
+        }
+
+        .section-title { 
+            display: flex; align-items: center; gap: 10px; 
+            margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid rgba(0,0,0,0.05); 
+            font-size: 1.2em;
+        }
+
+        /* גריד סרטונים פתוחים */
+        .video-grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
+            gap: 20px; margin-top: 20px; margin-bottom: 40px;
+        }
+
+        /* שורת סרטונים חסומים (קטנים יותר למטה) */
+        .blocked-row {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 5px 20px 5px;
+            margin-top: 20px;
+        }
+
+        .blocked-row::-webkit-scrollbar { height: 8px; }
+        .blocked-row::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* כרטיסיית וידאו */
+        .video-card {
+            background: rgba(255, 255, 255, 0.95); border-radius: 16px; overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s; position: relative;
+            border: 1px solid rgba(255,255,255,0.5); 
+            animation: fadeIn 0.4s ease forwards;
+            display: flex; flex-direction: column;
+        }
+        
+        .video-card.clickable { cursor: pointer; }
+        .video-card.clickable:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.12); }
+
+        /* כרטיסייה בשורת החסומים תהיה קטנה יותר */
+        .blocked-row .video-card {
+            flex: 0 0 180px; /* רוחב קבוע לשורה הנגללת */
+            opacity: 0.8;
+        }
+        .sidebar .video-card {
+            margin-bottom: 15px;
+        }
 
         .thumb-container { position: relative; padding-top: 56.25%; background: #e2e8f0; }
-        .thumb-container img { position: absolute; top: 0; width: 100%; height: 100%; object-fit: cover; }
+        .thumb-container img { position: absolute; top: 0; right: 0; width: 100%; height: 100%; object-fit: cover; }
 
-        .card-content { padding: 18px; }
-        .card-content h3 { margin: 0; font-size: 15px; line-height: 1.5; height: 45px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .card-content { padding: 12px; }
+        .card-content h3 { margin: 0; font-size: 14px; line-height: 1.4; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
         .status-tag {
-            position: absolute; top: 12px; right: 12px; padding: 6px 14px;
-            border-radius: 20px; font-size: 12px; font-weight: bold; z-index: 10;
-            backdrop-filter: blur(4px); box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: absolute; top: 8px; right: 8px; padding: 4px 10px;
+            border-radius: 12px; font-size: 12px; font-weight: bold; z-index: 10;
+            backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-        .status-checking { background: rgba(254, 240, 138, 0.9); color: #854d0e; }
-        .status-open { background: rgba(167, 243, 208, 0.9); color: #065f46; }
-        .status-blocked { background: rgba(254, 202, 202, 0.9); color: #991b1b; }
+        .status-checking { background: rgba(254, 240, 138, 0.95); color: #854d0e; }
+        .status-open { background: rgba(167, 243, 208, 0.95); color: #065f46; }
+        .status-blocked { background: rgba(254, 202, 202, 0.95); color: #991b1b; }
 
-        /* נגן מובנה (Modal) */
+        #loadMoreContainer { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.1); }
+        #loadMoreBtn { background: #475569; padding: 12px 30px; font-size: 16px; }
+        #loadMoreBtn:hover { background: #334155; }
+
+        /* נגן מובנה (Modal) - מתוקן */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.9); backdrop-filter: blur(8px);
             display: none; align-items: center; justify-content: center; z-index: 1000;
             opacity: 0; transition: opacity 0.3s ease;
         }
         .modal-overlay.active { display: flex; opacity: 1; }
+        
+        .modal-content-wrapper {
+            position: relative; width: 90%; max-width: 900px;
+        }
+        
         .modal-content {
-            width: 90%; max-width: 900px; background: #000;
+            width: 100%; background: #000;
             border-radius: 16px; overflow: hidden; position: relative;
             box-shadow: 0 25px 50px rgba(0,0,0,0.5); aspect-ratio: 16/9;
         }
+        
         .close-btn {
-            position: absolute; top: -40px; right: 0; color: white;
-            font-size: 30px; cursor: pointer; background: none; border: none; padding: 0;
+            position: absolute; top: -45px; left: 0; color: white;
+            font-size: 18px; cursor: pointer; background: rgba(255,255,255,0.2); 
+            border: 1px solid rgba(255,255,255,0.4); padding: 6px 16px; border-radius: 8px;
+            transition: 0.2s; z-index: 1001;
         }
+        .close-btn:hover { background: rgba(255,255,255,0.4); color: white; }
 
-        #hidden-checker { position: fixed; top: -1000px; width: 1px; height: 1px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        #hidden-checker { position: fixed; top: -1000px; width: 1px; height: 1px; overflow: hidden; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* רספונסיביות */
+        @media (max-width: 900px) {
+            .layout-wrapper { flex-direction: column; }
+            .sidebar { flex: none; width: 100%; position: static; max-height: 400px; }
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>חיפוש וידאו חכם</h1>
-        <p>מנוע חיפוש מסונן המבוסס על חוכמת ההמונים ובדיקה בזמן אמת</p>
-    </div>
-
-    <div class="search-area">
-        <input type="text" id="searchInput" placeholder="מה תרצה לחפש היום?" onkeypress="if(event.key === 'Enter') handleSearch()">
-        <button id="searchBtn" onclick="handleSearch()">חפש עכשיו</button>
-    </div>
-
-    <div id="resultsArea" style="display:none;">
-        <div class="grid-title">
-            <span style="font-size: 28px;">✅</span>
-            <h2 style="margin: 0;">סרטונים זמינים לצפייה</h2>
-        </div>
-        <div id="openGrid" class="video-grid"></div>
-
-        <div class="grid-title">
-            <span style="font-size: 28px;">❌</span>
-            <h2 style="margin: 0;">סרטונים חסומים או בבדיקה</h2>
-        </div>
-        <div id="blockedGrid" class="video-grid"></div>
-    </div>
+<div class="header">
+    <h1>חיפוש וידאו חכם</h1>
+    <p>מנוע חיפוש מסונן המבוסס על חוכמת ההמונים ובדיקה בזמן אמת</p>
 </div>
 
+<div class="search-area">
+    <input type="text" id="searchInput" placeholder="מה תרצה לחפש היום?" onkeypress="if(event.key === 'Enter') handleSearch(false)">
+    <button id="searchBtn" onclick="handleSearch(false)">חפש עכשיו</button>
+</div>
+
+<div class="layout-wrapper">
+    <!-- צד ימין: סרטונים בבדיקה -->
+    <aside class="sidebar" id="checkingSidebarWrapper">
+        <h2 class="section-title"><span>⏳</span> כרגע בבדיקה</h2>
+        <div id="checkingList"></div>
+    </aside>
+
+    <!-- מרכז: תוצאות פתוחות וחסומות -->
+    <main class="main-content" id="mainContentArea">
+        
+        <div class="open-section">
+            <h2 class="section-title"><span>✅</span> סרטונים זמינים לצפייה</h2>
+            <div id="openGrid" class="video-grid"></div>
+        </div>
+
+        <div class="blocked-section" style="margin-top: 50px;">
+            <h2 class="section-title" style="font-size: 1.1em;"><span>❌</span> סרטונים חסומים</h2>
+            <div id="blockedRow" class="blocked-row"></div>
+        </div>
+
+        <div id="loadMoreContainer" style="display: none;">
+            <button id="loadMoreBtn" onclick="handleSearch(true)">טען עוד תוצאות</button>
+        </div>
+    </main>
+</div>
+
+<!-- המודל של הנגן המוטמע -->
 <div class="modal-overlay" id="videoModal" onclick="closePlayer(event)">
-    <div style="position: relative; width: 90%; max-width: 900px;">
-        <button class="close-btn" onclick="closePlayer(event, true)">&times; סגור</button>
+    <div class="modal-content-wrapper">
+        <button class="close-btn" onclick="closePlayer(event, true)">✖ סגור נגן</button>
         <div class="modal-content" id="playerContainer"></div>
     </div>
 </div>
@@ -159,17 +260,27 @@
 <script>
     // ================= הגדרות מערכת =================
     const CONFIG = {
-        YOUTUBE_API_KEY: 'AIzaSyClbzreAS3p3pzS16vpjgb41KAKIHL5Vtk', // <--- מפתח יוטיוב
-        SUPABASE_URL: 'https://rqeluyixgdepgjubersr.supabase.co',       // <--- כתובת מסד הנתונים
-        SUPABASE_KEY: 'sb_publishable_VmT1Idb6Ze1OPYOdBLugPA_VzhSVglQ',  // <--- מפתח מסד הנתונים
-        MAX_CONCURRENT_CHECKS: 5                 // מקסימום בדיקות במקביל
+        YOUTUBE_API_KEY: 'AIzaSyClbzreAS3p3pzS16vpjgb41KAKIHL5Vtk', // <--- שים כאן את המפתח האמיתי שלך
+        SUPABASE_URL: 'https://rqeluyixgdepgjubersr.supabase.co',
+        SUPABASE_KEY: 'sb_publishable_VmT1Idb6Ze1OPYOdBLugPA_VzhSVglQ',
+        MAX_CONCURRENT_CHECKS: 5 // מקסימום בדיקות במקביל
     };
     
     const videoCache = {};
     let isYTReady = false;
     let detectedFilter = 'Unknown';
+    
+    // משתני ניהול החיפוש והדפדוף (Pagination)
+    let currentQuery = '';
+    let nextPageToken = '';
+    let openVideosInCurrentBatch = 0;
+    let autoFetchAttempts = 0; // מניעת לולאה אינסופית
 
-    // זיהוי ראשוני של סוג הסינון בעליית הדף
+    window.onYouTubeIframeAPIReady = function() { 
+        isYTReady = true; 
+    };
+
+    // זיהוי ראשוני של סוג הסינון
     async function initFilterDetection() {
         try {
             await fetch('https://netfree.link/api/check-video?v=test', { mode: 'no-cors' });
@@ -180,45 +291,76 @@
     }
     initFilterDetection();
 
-    function onYouTubeIframeAPIReady() { isYTReady = true; }
-
     // ================= ניהול החיפוש =================
-    async function handleSearch() {
-        if (!isYTReady) return alert("המערכת טוענת רכיבים, אנא המתן שניה ונסה שוב.");
-        const query = document.getElementById('searchInput').value.trim();
-        if (!query) return;
-
-        // דיווח חיפוש לאנליטיקס
-        if (typeof gtag !== 'undefined') {
-            gtag('event', 'search', { search_term: query });
+    async function handleSearch(isLoadMore = false) {
+        if (!isYTReady) {
+            alert("המערכת טוענת רכיבים, אנא המתן שניה ונסה שוב.");
+            return;
         }
 
-        const btn = document.getElementById('searchBtn');
-        btn.disabled = true;
-        btn.innerText = 'מחפש...';
+        const queryInput = document.getElementById('searchInput').value.trim();
+        if (!queryInput) return;
+
+        // אם זה חיפוש חדש (לא 'טען עוד')
+        if (!isLoadMore) {
+            currentQuery = queryInput;
+            nextPageToken = '';
+            autoFetchAttempts = 0;
+            
+            // ניקוי תוצאות קודמות
+            document.getElementById('checkingList').innerHTML = '';
+            document.getElementById('openGrid').innerHTML = '';
+            document.getElementById('blockedRow').innerHTML = '';
+            
+            // דיווח אנליטיקס
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'search', { search_term: currentQuery });
+            }
+        }
+
+        const searchBtn = document.getElementById('searchBtn');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
         
-        document.getElementById('resultsArea').style.display = 'block';
-        document.getElementById('openGrid').innerHTML = '';
-        document.getElementById('blockedGrid').innerHTML = '';
+        searchBtn.disabled = true;
+        loadMoreBtn.disabled = true;
+        searchBtn.innerText = 'מחפש...';
+        loadMoreBtn.innerText = 'טוען...';
+        
+        document.getElementById('checkingSidebarWrapper').style.display = 'block';
+        document.getElementById('mainContentArea').style.display = 'block';
+        document.getElementById('loadMoreContainer').style.display = 'none';
+
+        openVideosInCurrentBatch = 0; // איפוס מונה הסרטונים הפתוחים לנגלה זו
 
         try {
-            // בקשת 50 תוצאות מיוטיוב
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(query)}&type=video&key=${CONFIG.YOUTUBE_API_KEY}`);
+            // בניית כתובת ה-API כולל PageToken אם קיים
+            let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(currentQuery)}&type=video&key=${CONFIG.YOUTUBE_API_KEY}`;
+            if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
+
+            const response = await fetch(apiUrl);
             const data = await response.json();
 
             if (data.error) throw new Error(data.error.message);
 
+            nextPageToken = data.nextPageToken || '';
             const videos = data.items;
+
+            if (videos.length === 0) {
+                if (!isLoadMore) alert("לא נמצאו תוצאות לחיפוש זה.");
+                return;
+            }
+
+            // יצירת חלוניות "בבדיקה" בסרגל הצד לכל הסרטונים בנגלה
             videos.forEach(v => renderPlaceholder(v));
 
-            // תור בדיקה חכם
+            // תור בדיקה חכם עם הבטחות (Promises)
             for (let i = 0; i < videos.length; i += CONFIG.MAX_CONCURRENT_CHECKS) {
                 const chunk = videos.slice(i, i + CONFIG.MAX_CONCURRENT_CHECKS);
                 await Promise.all(chunk.map(async (v) => {
                     const videoId = v.id.videoId;
                     const title = v.snippet.title;
 
-                    // שלב 1: בדיקה מול מסד הנתונים הגלובלי (Supabase)
+                    // שלב 1: בדיקה מול מסד הנתונים
                     const dbStatus = await checkGlobalIndex(videoId);
                     if (dbStatus === 'blocked') {
                         return finalizeStatus(videoId, false, title, false);
@@ -226,7 +368,7 @@
                         return finalizeStatus(videoId, true, title, false);
                     }
 
-                    // שלב 2: סינון בזק (תמונה)
+                    // שלב 2: סינון תמונה מהיר
                     const isImageOpen = await quickImageCheck(videoId);
                     if (!isImageOpen) {
                         return finalizeStatus(videoId, false, title, true);
@@ -236,11 +378,30 @@
                     await deepPlayerCheck(videoId, title);
                 }));
             }
+
+            // ---- סיום סריקת הנגלה הנוכחית ----
+            
+            // הצגת כפתור 'טען עוד' אם יש עמוד נוסף
+            if (nextPageToken) {
+                document.getElementById('loadMoreContainer').style.display = 'block';
+                
+                // אוטומציה: אם מצאנו פחות מ-3 פתוחים בנגלה הזו, נטען עוד אוטומטית (מקסימום 3 פעמים ברצף)
+                if (openVideosInCurrentBatch < 3 && autoFetchAttempts < 3) {
+                    autoFetchAttempts++;
+                    console.log(`נמצאו רק ${openVideosInCurrentBatch} סרטונים פתוחים. ממשיך לטעון אוטומטית... (ניסיון ${autoFetchAttempts})`);
+                    handleSearch(true); // קריאה אוטומטית לנגלה הבאה
+                } else {
+                    autoFetchAttempts = 0; // איפוס מונה ניסיונות אם עצרנו להמתנה למשתמש
+                }
+            }
+
         } catch (e) {
-            alert(e.message.includes('quota') ? "חרגת ממכסת החיפושים של גוגל." : "שגיאה: " + e.message);
+            alert(e.message.includes('quota') ? "חרגת ממכסת החיפושים של גוגל." : "שגיאה בחיפוש: " + e.message);
         } finally {
-            btn.disabled = false;
-            btn.innerText = 'חפש עכשיו';
+            searchBtn.disabled = false;
+            loadMoreBtn.disabled = false;
+            searchBtn.innerText = 'חפש עכשיו';
+            loadMoreBtn.innerText = 'טען עוד תוצאות';
         }
     }
 
@@ -305,16 +466,25 @@
         const tag = document.getElementById(`status-${videoId}`);
         if (!card || !tag) return;
 
+        // העברת הכרטיסייה מהסרגל למקום החדש
         if (isOpen) {
+            openVideosInCurrentBatch++; // עדכון מונה לטובת האוטומציה
+            
             tag.innerText = "פתוח";
             tag.className = "status-tag status-open";
-            document.getElementById('openGrid').prepend(card);
-            // הוספת לחיצה לפתיחת הנגן
+            card.classList.add('clickable');
+            
+            document.getElementById('openGrid').appendChild(card);
+            
+            // לחיצה לפתיחת נגן תתאפשר רק כשהסטטוס פתוח סופית
             card.onclick = () => openPlayerModal(videoId);
         } else {
             tag.innerText = "חסום";
             tag.className = "status-tag status-blocked";
-            card.onclick = null; // ביטול לחיצה אם חסום
+            card.classList.remove('clickable');
+            card.onclick = null;
+            
+            document.getElementById('blockedRow').appendChild(card);
         }
 
         if (shouldSaveToDB) saveToGlobalIndex(videoId, title, isOpen);
@@ -322,7 +492,7 @@
 
     // ================= מסד נתונים (Supabase) =================
     async function checkGlobalIndex(videoId) {
-        if (!CONFIG.SUPABASE_URL.includes('http')) return null; // דילוג אם לא הוגדר מפתח
+        if (!CONFIG.SUPABASE_URL.includes('http')) return null;
         try {
             const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/videos?video_id=eq.${videoId}&filter_provider=eq.${detectedFilter}&select=status`, {
                 headers: { 'apikey': CONFIG.SUPABASE_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}` }
@@ -356,35 +526,44 @@
     // ================= ממשק משתמש ונגן =================
     function renderPlaceholder(v) {
         const id = v.id.videoId;
-        const grid = document.getElementById('blockedGrid');
+        const list = document.getElementById('checkingList');
+        
         const card = document.createElement('div');
         card.className = 'video-card';
         card.id = `card-${id}`;
+        
+        // יצירת המבנה. שימו לב: אין כאן עדיין אירוע onclick (מוסף רק אחרי שנמצא כפתוח)
         card.innerHTML = `
             <div id="status-${id}" class="status-tag status-checking">בבדיקה...</div>
             <div class="thumb-container">
-                <img src="${v.snippet.thumbnails.medium.url}" loading="lazy">
+                <img src="${v.snippet.thumbnails.medium.url}" loading="lazy" alt="Thumbnail">
             </div>
             <div class="card-content">
                 <h3>${v.snippet.title}</h3>
             </div>
         `;
-        grid.appendChild(card);
+        list.appendChild(card);
     }
 
+    // פתיחת הנגן המוטמע (תוקן)
     function openPlayerModal(videoId) {
         const modal = document.getElementById('videoModal');
         const container = document.getElementById('playerContainer');
-        container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allowfullscreen></iframe>`;
+        
+        // תיקון קריטי: הכנסת ה-URL התקין ל-src
+        container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+        
         modal.classList.add('active');
         
         if (typeof gtag !== 'undefined') gtag('event', 'video_play', { video_id: videoId });
     }
 
+    // סגירת הנגן מכל מקום
     function closePlayer(event, force = false) {
+        // בודק אם לחצו על הרקע הכהה או על כפתור הסגירה
         if (force || event.target.id === 'videoModal') {
             const modal = document.getElementById('videoModal');
-            document.getElementById('playerContainer').innerHTML = ''; // עוצר את הסרטון
+            document.getElementById('playerContainer').innerHTML = ''; // מנקה את ה-iframe ועוצר את השמע
             modal.classList.remove('active');
         }
     }
