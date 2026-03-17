@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חיפוש וידאו מסונן - מערכת חכמה</title>
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX'); // החלף במזהה שלך
+    </script>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <style>
+        /* עיצוב זכוכית מודרני ואנימציות */
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0;
+            padding: 30px 15px;
+            color: var(--text-main);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { margin: 0 0 10px 0; font-size: 2.5em; color: #111827; }
+        .header p { margin: 0; color: #4b5563; font-size: 1.1em; }
+
+        .search-area { display: flex; gap: 15px; margin-bottom: 40px; }
+        input {
+            flex: 1; padding: 16px 25px; border: 2px solid transparent;
+            border-radius: 16px; font-size: 18px; outline: none;
+            background: rgba(255,255,255,0.9); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+
+        button {
+            padding: 16px 40px; background: var(--primary); color: white;
+            border: none; border-radius: 16px; font-size: 18px; font-weight: bold;
+            cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        button:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .grid-title { display: flex; align-items: center; gap: 12px; margin-top: 50px; padding-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.05); }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 25px; margin-top: 25px; }
+
+        .video-card {
+            background: rgba(255, 255, 255, 0.9); border-radius: 20px; overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s; position: relative;
+            border: 1px solid rgba(255,255,255,0.5); cursor: pointer;
+            animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .video-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.12); }
+
+        .thumb-container { position: relative; padding-top: 56.25%; background: #e2e8f0; }
+        .thumb-container img { position: absolute; top: 0; width: 100%; height: 100%; object-fit: cover; }
+
+        .card-content { padding: 18px; }
+        .card-content h3 { margin: 0; font-size: 15px; line-height: 1.5; height: 45px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+        .status-tag {
+            position: absolute; top: 12px; right: 12px; padding: 6px 14px;
+            border-radius: 20px; font-size: 12px; font-weight: bold; z-index: 10;
+            backdrop-filter: blur(4px); box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-checking { background: rgba(254, 240, 138, 0.9); color: #854d0e; }
+        .status-open { background: rgba(167, 243, 208, 0.9); color: #065f46; }
+        .status-blocked { background: rgba(254, 202, 202, 0.9); color: #991b1b; }
+
+        /* נגן מובנה (Modal) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content {
+            width: 90%; max-width: 900px; background: #000;
+            border-radius: 16px; overflow: hidden; position: relative;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5); aspect-ratio: 16/9;
+        }
+        .close-btn {
+            position: absolute; top: -40px; right: 0; color: white;
+            font-size: 30px; cursor: pointer; background: none; border: none; padding: 0;
+        }
+
+        #hidden-checker { position: fixed; top: -1000px; width: 1px; height: 1px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>חיפוש וידאו חכם</h1>
+        <p>מנוע חיפוש מסונן המבוסס על חוכמת ההמונים ובדיקה בזמן אמת</p>
+    </div>
+
+    <div class="search-area">
+        <input type="text" id="searchInput" placeholder="מה תרצה לחפש היום?" onkeypress="if(event.key === 'Enter') handleSearch()">
+        <button id="searchBtn" onclick="handleSearch()">חפש עכשיו</button>
+    </div>
+
+    <div id="resultsArea" style="display:none;">
+        <div class="grid-title">
+            <span style="font-size: 28px;">✅</span>
+            <h2 style="margin: 0;">סרטונים זמינים לצפייה</h2>
+        </div>
+        <div id="openGrid" class="video-grid"></div>
+
+        <div class="grid-title">
+            <span style="font-size: 28px;">❌</span>
+            <h2 style="margin: 0;">סרטונים חסומים או בבדיקה</h2>
+        </div>
+        <div id="blockedGrid" class="video-grid"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="videoModal" onclick="closePlayer(event)">
+    <div style="position: relative; width: 90%; max-width: 900px;">
+        <button class="close-btn" onclick="closePlayer(event, true)">&times; סגור</button>
+        <div class="modal-content" id="playerContainer"></div>
+    </div>
+</div>
+
+<div id="hidden-checker"></div>
+
+<script>
+    // ================= הגדרות מערכת =================
+    const CONFIG = {
+        YOUTUBE_API_KEY: 'YOUR_YOUTUBE_API_KEY', // <--- מפתח יוטיוב
+        SUPABASE_URL: 'YOUR_SUPABASE_URL',       // <--- כתובת מסד הנתונים
+        SUPABASE_KEY: 'YOUR_SUPABASE_ANON_KEY',  // <--- מפתח מסד הנתונים
+        MAX_CONCURRENT_CHECKS: 5                 // מקסימום בדיקות במקביל
+    };
+    
+    const videoCache = {};
+    let isYTReady = false;
+    let detectedFilter = 'Unknown';
+
+    // זיהוי ראשוני של סוג הסינון בעליית הדף
+    async function initFilterDetection() {
+        try {
+            await fetch('https://netfree.link/api/check-video?v=test', { mode: 'no-cors' });
+            detectedFilter = 'NetFree';
+        } catch (e) {
+            detectedFilter = 'Other';
+        }
+    }
+    initFilterDetection();
+
+    function onYouTubeIframeAPIReady() { isYTReady = true; }
+
+    // ================= ניהול החיפוש =================
+    async function handleSearch() {
+        if (!isYTReady) return alert("המערכת טוענת רכיבים, אנא המתן שניה ונסה שוב.");
+        const query = document.getElementById('searchInput').value.trim();
+        if (!query) return;
+
+        // דיווח חיפוש לאנליטיקס
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'search', { search_term: query });
+        }
+
+        const btn = document.getElementById('searchBtn');
+        btn.disabled = true;
+        btn.innerText = 'מחפש...';
+        
+        document.getElementById('resultsArea').style.display = 'block';
+        document.getElementById('openGrid').innerHTML = '';
+        document.getElementById('blockedGrid').innerHTML = '';
+
+        try {
+            // בקשת 50 תוצאות מיוטיוב
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(query)}&type=video&key=${CONFIG.YOUTUBE_API_KEY}`);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error.message);
+
+            const videos = data.items;
+            videos.forEach(v => renderPlaceholder(v));
+
+            // תור בדיקה חכם
+            for (let i = 0; i < videos.length; i += CONFIG.MAX_CONCURRENT_CHECKS) {
+                const chunk = videos.slice(i, i + CONFIG.MAX_CONCURRENT_CHECKS);
+                await Promise.all(chunk.map(async (v) => {
+                    const videoId = v.id.videoId;
+                    const title = v.snippet.title;
+
+                    // שלב 1: בדיקה מול מסד הנתונים הגלובלי (Supabase)
+                    const dbStatus = await checkGlobalIndex(videoId);
+                    if (dbStatus === 'blocked') {
+                        return finalizeStatus(videoId, false, title, false);
+                    } else if (dbStatus === 'open') {
+                        return finalizeStatus(videoId, true, title, false);
+                    }
+
+                    // שלב 2: סינון בזק (תמונה)
+                    const isImageOpen = await quickImageCheck(videoId);
+                    if (!isImageOpen) {
+                        return finalizeStatus(videoId, false, title, true);
+                    }
+
+                    // שלב 3: בדיקת עומק (נגן נסתר)
+                    await deepPlayerCheck(videoId, title);
+                }));
+            }
+        } catch (e) {
+            alert(e.message.includes('quota') ? "חרגת ממכסת החיפושים של גוגל." : "שגיאה: " + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'חפש עכשיו';
+        }
+    }
+
+    // ================= לוגיקת בדיקות =================
+    function quickImageCheck(videoId) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+        });
+    }
+
+    function deepPlayerCheck(videoId, title) {
+        return new Promise((resolve) => {
+            if (videoCache[videoId] !== undefined) {
+                finalizeStatus(videoId, videoCache[videoId], title, false);
+                return resolve();
+            }
+
+            const checkDiv = document.createElement('div');
+            const divId = `check-${videoId}`;
+            checkDiv.id = divId;
+            document.getElementById('hidden-checker').appendChild(checkDiv);
+
+            let hasResolved = false;
+
+            const player = new YT.Player(divId, {
+                videoId: videoId,
+                playerVars: { 'autoplay': 1, 'mute': 1, 'origin': window.location.origin },
+                events: {
+                    'onReady': (e) => e.target.playVideo(),
+                    'onStateChange': (e) => {
+                        if (!hasResolved && (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING)) {
+                            hasResolved = true;
+                            cleanupAndFinish(true);
+                        }
+                    },
+                    'onError': () => {
+                        if (!hasResolved) { hasResolved = true; cleanupAndFinish(false); }
+                    }
+                }
+            });
+
+            const timeout = setTimeout(() => {
+                if (!hasResolved) { hasResolved = true; cleanupAndFinish(false); }
+            }, 6000);
+
+            function cleanupAndFinish(isOpen) {
+                clearTimeout(timeout);
+                try { player.destroy(); document.getElementById(divId)?.remove(); } catch(err) {}
+                finalizeStatus(videoId, isOpen, title, true);
+                resolve();
+            }
+        });
+    }
+
+    function finalizeStatus(videoId, isOpen, title, shouldSaveToDB) {
+        videoCache[videoId] = isOpen;
+        
+        const card = document.getElementById(`card-${videoId}`);
+        const tag = document.getElementById(`status-${videoId}`);
+        if (!card || !tag) return;
+
+        if (isOpen) {
+            tag.innerText = "פתוח";
+            tag.className = "status-tag status-open";
+            document.getElementById('openGrid').prepend(card);
+            // הוספת לחיצה לפתיחת הנגן
+            card.onclick = () => openPlayerModal(videoId);
+        } else {
+            tag.innerText = "חסום";
+            tag.className = "status-tag status-blocked";
+            card.onclick = null; // ביטול לחיצה אם חסום
+        }
+
+        if (shouldSaveToDB) saveToGlobalIndex(videoId, title, isOpen);
+    }
+
+    // ================= מסד נתונים (Supabase) =================
+    async function checkGlobalIndex(videoId) {
+        if (!CONFIG.SUPABASE_URL.includes('http')) return null; // דילוג אם לא הוגדר מפתח
+        try {
+            const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/videos?video_id=eq.${videoId}&filter_provider=eq.${detectedFilter}&select=status`, {
+                headers: { 'apikey': CONFIG.SUPABASE_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}` }
+            });
+            const data = await res.json();
+            return data.length > 0 ? data[0].status : null;
+        } catch (e) { return null; }
+    }
+
+    async function saveToGlobalIndex(id, title, isOpen) {
+        if (!CONFIG.SUPABASE_URL.includes('http')) return;
+        try {
+            await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/videos`, {
+                method: 'POST',
+                headers: {
+                    'apikey': CONFIG.SUPABASE_KEY,
+                    'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify({
+                    video_id: id, title: title,
+                    status: isOpen ? 'open' : 'blocked',
+                    filter_provider: detectedFilter,
+                    updated_at: new Date()
+                })
+            });
+        } catch (e) { console.error("DB Save Error", e); }
+    }
+
+    // ================= ממשק משתמש ונגן =================
+    function renderPlaceholder(v) {
+        const id = v.id.videoId;
+        const grid = document.getElementById('blockedGrid');
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.id = `card-${id}`;
+        card.innerHTML = `
+            <div id="status-${id}" class="status-tag status-checking">בבדיקה...</div>
+            <div class="thumb-container">
+                <img src="${v.snippet.thumbnails.medium.url}" loading="lazy">
+            </div>
+            <div class="card-content">
+                <h3>${v.snippet.title}</h3>
+            </div>
+        `;
+        grid.appendChild(card);
+    }
+
+    function openPlayerModal(videoId) {
+        const modal = document.getElementById('videoModal');
+        const container = document.getElementById('playerContainer');
+        container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allowfullscreen></iframe>`;
+        modal.classList.add('active');
+        
+        if (typeof gtag !== 'undefined') gtag('event', 'video_play', { video_id: videoId });
+    }
+
+    function closePlayer(event, force = false) {
+        if (force || event.target.id === 'videoModal') {
+            const modal = document.getElementById('videoModal');
+            document.getElementById('playerContainer').innerHTML = ''; // עוצר את הסרטון
+            modal.classList.remove('active');
+        }
+    }
+</script>
+
+</body>
+</html>
