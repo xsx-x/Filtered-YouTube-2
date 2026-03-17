@@ -360,17 +360,13 @@ function promptUserForKey() {
         const queryInput = document.getElementById('searchInput').value.trim();
         if (!queryInput) return;
 
-        // אם זה חיפוש חדש
         if (!isLoadMore) {
             currentQuery = queryInput;
             nextPageToken = '';
             autoFetchAttempts = 0;
-            
-            // ניקוי תוצאות קודמות
             document.getElementById('checkingList').innerHTML = '';
             document.getElementById('openGrid').innerHTML = '';
             document.getElementById('blockedRow').innerHTML = '';
-            
             if (typeof gtag !== 'undefined') gtag('event', 'search', { search_term: currentQuery });
         }
 
@@ -379,20 +375,17 @@ function promptUserForKey() {
         
         searchBtn.disabled = true;
         loadMoreBtn.disabled = true;
+        searchBtn.innerText = isLoadMore ? 'טוען...' : 'מחפש...';
         
-        if (!isLoadMore) searchBtn.innerText = 'מחפש...';
-        else loadMoreBtn.innerText = 'טוען...';
-        
-        // הצגת הסרגל בבדיקה כל פעם שמתחילים לחפש/לטעון עוד
         document.getElementById('checkingSidebarWrapper').style.display = 'block';
         document.getElementById('mainContentArea').style.display = 'block';
 
         openVideosInCurrentBatch = 0;
 
         try {
-            // שנה את השורה הזו ב-handleSearch:
-let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(currentQuery)}&type=video&key=${getActiveApiKey()}`;
-if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
+            let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(currentQuery)}&type=video&key=${getActiveApiKey()}`;
+            if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
+
             const response = await fetch(apiUrl);
             const data = await response.json();
 
@@ -406,68 +399,46 @@ if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
                 return;
             }
 
-            // יצירת חלוניות "בבדיקה"
             videos.forEach(v => renderPlaceholder(v));
 
-            // תור בדיקה חכם
             for (let i = 0; i < videos.length; i += CONFIG.MAX_CONCURRENT_CHECKS) {
                 const chunk = videos.slice(i, i + CONFIG.MAX_CONCURRENT_CHECKS);
                 await Promise.all(chunk.map(async (v) => {
                     const videoId = v.id.videoId;
                     const title = v.snippet.title;
-
-                    // 1. מסד הנתונים
                     const dbStatus = await checkGlobalIndex(videoId);
                     if (dbStatus === 'blocked') return finalizeStatus(videoId, false, title, false);
                     if (dbStatus === 'open') return finalizeStatus(videoId, true, title, false);
-
-                    // 2. סינון תמונה
                     const isImageOpen = await quickImageCheck(videoId);
                     if (!isImageOpen) return finalizeStatus(videoId, false, title, true);
-
-                    // 3. בדיקת נגן עמוקה
                     await deepPlayerCheck(videoId, title);
                 }));
             }
 
-            // עדכון כפתור טען עוד
             if (nextPageToken) {
                 loadMoreBtn.style.display = 'inline-block';
-                
-                // טעינה אוטומטית אם חסרים סרטונים פתוחים
                 if (openVideosInCurrentBatch < 3 && autoFetchAttempts < 3) {
                     autoFetchAttempts++;
                     handleSearch(true);
-                } else {
-                    autoFetchAttempts = 0;
                 }
             } else {
-                loadMoreBtn.style.display = 'none'; // אין יותר תוצאות
+                loadMoreBtn.style.display = 'none';
             }
 
-        try {
-        // ... (כל הלוגיקה של ה-fetch והחיפוש)
-        
-    } catch (e) {
-        // הטיפול החכם במכסות:
-        if (e.message.includes('quota') || e.message.includes('403')) {
-            rotateApiKey();
-            alert("המכסה של המפתח הנוכחי נגמרה. המערכת עברה אוטומטית למפתח גיבוי. אנא נסה לחפש שוב.");
-        } else {
-            alert("שגיאה בחיפוש: " + e.message);
+        } catch (e) {
+            if (e.message.includes('quota') || e.message.includes('403')) {
+                rotateApiKey();
+                alert("המכסה של המפתח הנוכחי נגמרה. המערכת עברה אוטומטית למפתח גיבוי. אנא נסה לחפש שוב.");
+            } else {
+                alert("שגיאה בחיפוש: " + e.message);
+            }
+        } finally {
+            searchBtn.disabled = false;
+            loadMoreBtn.disabled = false;
+            searchBtn.innerText = 'חפש עכשיו';
+            loadMoreBtn.innerText = 'טען עוד תוצאות';
         }
-    } finally {
-        // הכפתורים תמיד חוזרים למצב רגיל בסוף הניסיון (הצלחה או כישלון)
-        const searchBtn = document.getElementById('searchBtn');
-        const loadMoreBtn = document.getElementById('loadMoreBtn');
-        searchBtn.disabled = false;
-        loadMoreBtn.disabled = false;
-        searchBtn.innerText = 'חפש עכשיו';
-        loadMoreBtn.innerText = 'טען עוד תוצאות';
-        }
-    
     }
-
     // ================= לוגיקת בדיקות =================
     function quickImageCheck(videoId) {
         return new Promise((resolve) => {
