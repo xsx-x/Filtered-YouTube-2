@@ -266,7 +266,19 @@
         </div>
     </main>
 </div>
+<div style="text-align: center; margin-top: 10px; font-size: 0.8em;">
+    <button onclick="promptUserForKey()" style="padding: 5px 10px; font-size: 12px; background: #94a3b8;">השתמש במפתח API אישי</button>
+</div>
 
+<script>
+function promptUserForKey() {
+    const key = prompt("הכנס מפתח API אישי (המפתח נשמר רק עד סגירת הדפדפן):");
+    if (key) {
+        sessionStorage.setItem('user_api_key', key);
+        alert("המפתח הוגדר בהצלחה!");
+    }
+}
+</script>
 <!-- קרדיט -->
 <div class="footer-credit">
     נבנה על ידי <strong>'לב טוב'</strong> | ליצירת קשר: <a href="mailto:myylbwt@gmail.com">myylbwt@gmail.com</a>
@@ -284,12 +296,34 @@
 
 <script>
     // ================= הגדרות מערכת =================
+
     const CONFIG = {
-        YOUTUBE_API_KEY: 'AIzaSyC1bz6pO3sc0DhWW4e7Sp3WLNVsUAi8l2s', // <--- שים כאן את המפתח האמיתי שלך
+        // רשימת המפתחות שלך - תמלא כאן את כל המפתחות שיש לך
+        API_KEYS: [
+            'AIzaSyC1bz6pO3sc0DhWW4e7Sp3WLNVsUAi8l2s',
+            'AIzaS_מפתח_שני_שלך',
+            'AIzaS_מפתח_שלישי_שלך'
+        ],
+        CURRENT_KEY_INDEX: 0,
         SUPABASE_URL: 'https://rqeluyixgdepgjubersr.supabase.co',
         SUPABASE_KEY: 'sb_publishable_VmT1Idb6Ze1OPYOdBLugPA_VzhSVglQ',
-        MAX_CONCURRENT_CHECKS: 5 // מקסימום בדיקות במקביל
+        MAX_CONCURRENT_CHECKS: 5
     };
+
+    // פונקציה לשליפת המפתח הפעיל (כולל בדיקה אם המשתמש הזין מפתח משלו)
+    function getActiveApiKey() {
+        const userKey = sessionStorage.getItem('user_api_key');
+        if (userKey) return userKey;
+        return CONFIG.API_KEYS[CONFIG.CURRENT_KEY_INDEX];
+    }
+
+    // פונקציה להחלפת מפתח אם נגמר
+    function rotateApiKey() {
+        if (sessionStorage.getItem('user_api_key')) return; // אם המשתמש עם מפתח אישי, לא נחליף לו
+        CONFIG.CURRENT_KEY_INDEX = (CONFIG.CURRENT_KEY_INDEX + 1) % CONFIG.API_KEYS.length;
+        console.log("Switching to API Key index:", CONFIG.CURRENT_KEY_INDEX);
+    }
+
     
     const videoCache = {};
     let isYTReady = false;
@@ -356,9 +390,9 @@
         openVideosInCurrentBatch = 0;
 
         try {
-            let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(currentQuery)}&type=video&key=${CONFIG.YOUTUBE_API_KEY}`;
-            if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
-
+            // שנה את השורה הזו ב-handleSearch:
+let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(currentQuery)}&type=video&key=${getActiveApiKey()}`;
+if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
             const response = await fetch(apiUrl);
             const data = await response.json();
 
@@ -411,14 +445,26 @@
                 loadMoreBtn.style.display = 'none'; // אין יותר תוצאות
             }
 
-        } catch (e) {
-            alert(e.message.includes('quota') ? "חרגת ממכסת החיפושים של גוגל." : "שגיאה בחיפוש: " + e.message);
-        } finally {
-            searchBtn.disabled = false;
-            loadMoreBtn.disabled = false;
-            searchBtn.innerText = 'חפש עכשיו';
-            loadMoreBtn.innerText = 'טען עוד תוצאות';
+        try {
+        // ... (כל הלוגיקה של ה-fetch והחיפוש)
+        
+    } catch (e) {
+        // הטיפול החכם במכסות:
+        if (e.message.includes('quota') || e.message.includes('403')) {
+            rotateApiKey();
+            alert("המכסה של המפתח הנוכחי נגמרה. המערכת עברה אוטומטית למפתח גיבוי. אנא נסה לחפש שוב.");
+        } else {
+            alert("שגיאה בחיפוש: " + e.message);
         }
+    } finally {
+        // הכפתורים תמיד חוזרים למצב רגיל בסוף הניסיון (הצלחה או כישלון)
+        const searchBtn = document.getElementById('searchBtn');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        searchBtn.disabled = false;
+        loadMoreBtn.disabled = false;
+        searchBtn.innerText = 'חפש עכשיו';
+        loadMoreBtn.innerText = 'טען עוד תוצאות';
+    
     }
 
     // ================= לוגיקת בדיקות =================
