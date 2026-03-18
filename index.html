@@ -309,7 +309,7 @@
     async function loginWithGoogle() {
         await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: window.location.origin }
+            options: { redirectTo: window.location.href } // שינינו מ-origin ל-href
         });
     }
 
