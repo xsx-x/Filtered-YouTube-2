@@ -267,11 +267,14 @@
 
 // ================= מערכת משתמשים (Auth) =================
     
-    // המתנה לטעינת הדף (DOM) לפני בדיקת התחברות
+    // בדיקת סטטוס התחברות בטעינה
+    async function checkUser() {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        handleAuthChange(session);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-        supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            handleAuthChange(session);
-        });
+        checkUser();
 
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             handleAuthChange(session);
@@ -281,8 +284,6 @@
     function handleAuthChange(session) {
         currentUser = session ? session.user : null;
         const authContainer = document.getElementById('authContainer');
-        
-        // הגנה: אם האלמנט טרם נטען, אל תעשה כלום
         if (!authContainer) return; 
         
         if (currentUser) {
@@ -294,7 +295,7 @@
                     <img src="${userAvatar}" alt="Avatar">
                     <span>שלום, ${userName}</span>
                     <button class="btn-history" style="background:#64748b;" onclick="window.location.reload()">🏠 בית</button>
-                    <button class="btn-history" onclick="fetchAndShowHistory()">🕒 היסטוריית הצפיות שלי</button>
+                    <button class="btn-history" onclick="fetchAndShowHistory()">🕒 היסטוריית צפיות</button>
                     <button class="btn-logout" onclick="logout()">התנתק</button>
                 </div>
             `;
@@ -309,20 +310,22 @@
     }
 
     async function loginWithGoogle() {
-        await supabaseClient.auth.signInWithOAuth({
+        // הבאת הכתובת הנקייה של העמוד הנוכחי
+        const returnUrl = window.location.href.split('#')[0].split('?')[0];
+        
+        const { error } = await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: { 
-                // תיקון קריטי: שולח את הדומיין הנקי (origin) בלבד, ללא פרמטרים או טוקנים
-                redirectTo: window.location.origin 
+                redirectTo: returnUrl
             }
         });
+        if (error) alert("שגיאה בהתחברות: " + error.message);
     }
 
     async function logout() {
         await supabaseClient.auth.signOut();
         window.location.reload(); 
     }
-
     // ================= ניהול מפתחות חיפוש =================
     function getActiveApiKey() {
         const userKey = sessionStorage.getItem('user_api_key');
