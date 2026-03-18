@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>יו-טוב, חיפוש וידאו מסונן</title>
     
-    <!-- Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-P4CSM96PSL"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -14,10 +13,8 @@
       gtag('config', 'G-P4CSM96PSL');
     </script>
 
-    <!-- YouTube Iframe API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     
-    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -53,21 +50,25 @@
 
         /* סרגל התחברות עליון */
         .auth-bar {
-            display: flex; justify-content: flex-end; align-items: center; gap: 15px;
+            display: flex;
+            justify-content: flex-end; align-items: center; gap: 15px;
             max-width: 1400px; margin: 0 auto 20px auto; width: 100%; height: 50px;
         }
         
         .btn-google {
-            display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+            display: flex;
+            align-items: center; gap: 10px; padding: 8px 16px;
             background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px;
-            font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-main);
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; color: var(--text-main);
             box-shadow: var(--shadow-sm); transition: all 0.2s;
         }
         .btn-google:hover { background: #f8fafc; box-shadow: var(--shadow-md); }
         .btn-google img { width: 18px; height: 18px; }
 
         .user-profile {
-            display: flex; align-items: center; gap: 12px;
+            display: flex;
+            align-items: center; gap: 12px;
             background: #ffffff; padding: 6px 12px; border-radius: 50px;
             border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);
         }
@@ -75,13 +76,15 @@
         .user-profile span { font-size: 14px; font-weight: 600; color: var(--text-main); }
         
         .btn-history {
-            background: #10b981; color: white; border: none; padding: 6px 14px;
+            background: #10b981;
+            color: white; border: none; padding: 6px 14px;
             border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
         }
         .btn-history:hover { background: #059669; }
         
         .btn-logout {
-            background: transparent; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 14px;
+            background: transparent;
+            color: #ef4444; border: 1px solid #fca5a5; padding: 6px 14px;
             border-radius: 20px; font-size: 13px; cursor: pointer; transition: 0.2s;
         }
         .btn-logout:hover { background: #fef2f2; }
@@ -182,8 +185,7 @@
 <body>
 
 <div class="auth-bar" id="authContainer">
-    <!-- תוכן סרגל ההתחברות יוזרק לפה ע"י ה-JS -->
-</div>
+    </div>
 
 <div class="header">
     <h1 onclick="window.location.reload()" style="cursor: pointer;">יו-טוב, חיפוש וידאו מסונן</h1>
@@ -207,7 +209,6 @@
             <h2 id="mainAreaTitle" class="section-title"><span>✅</span> סרטונים זמינים לצפייה</h2>
             <div id="openGrid" class="video-grid"></div>
             
-            <!-- הכפתור החדש של ההיסטוריה -->
             <div style="text-align: center; margin-top: 20px;">
                 <button id="loadMoreHistoryBtn" class="main-btn" onclick="fetchAndShowHistory(true)" style="display: none; background: #10b981; border: none;">טען היסטוריה ישנה יותר 🕒</button>
             </div>
@@ -251,10 +252,8 @@
         MAX_CONCURRENT_CHECKS: 5
     };
 
-    // אתחול לקוח Supabase
     const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
     let currentUser = null;
-
     let videoCache = {};
     let isYTReady = false;
     let detectedFilter = 'Unknown';
@@ -262,13 +261,11 @@
     let nextPageToken = '';
     let openVideosInCurrentBatch = 0;
     let historyOffset = 0; // זוכר איזה עמוד היסטוריה אנחנו קוראים עכשיו
-    const HISTORY_PAGE_SIZE = 50; // כמה סרטונים למשוך בכל לחיצה
+    const HISTORY_PAGE_SIZE = 50;
 
     window.onYouTubeIframeAPIReady = function() { isYTReady = true; };
 
     // ================= מערכת משתמשים (Auth) =================
-    
-    // בדיקת התחברות בטעינת הדף
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
         handleAuthChange(session);
     });
@@ -284,7 +281,6 @@
         if (currentUser) {
             const userName = currentUser.user_metadata.full_name || 'משתמש';
             const userAvatar = currentUser.user_metadata.avatar_url || 'https://www.gravatar.com/avatar/?d=mp';
-            
             authContainer.innerHTML = `
                 <div class="user-profile">
                     <img src="${userAvatar}" alt="Avatar">
@@ -307,13 +303,13 @@
     async function loginWithGoogle() {
         await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: window.location.href } 
+            options: { redirectTo: window.location.href }
         });
     }
 
     async function logout() {
         await supabaseClient.auth.signOut();
-        window.location.reload(); 
+        window.location.reload();
     }
 
     // ================= ניהול מפתחות חיפוש =================
@@ -361,7 +357,7 @@
             document.getElementById('blockedRow').innerHTML = '';
             document.getElementById('mainAreaTitle').innerHTML = '<span>✅</span> סרטונים זמינים לצפייה';
             document.getElementById('blockedSection').style.display = 'block';
-            document.getElementById('loadMoreHistoryBtn').style.display = 'none'; 
+            document.getElementById('loadMoreHistoryBtn').style.display = 'none';
             if (typeof gtag !== 'undefined') gtag('event', 'search', { search_term: currentQuery });
         }
 
@@ -373,8 +369,8 @@
         
         document.getElementById('checkingSidebarWrapper').style.display = 'block';
         document.getElementById('mainContentArea').style.display = 'block';
-
         openVideosInCurrentBatch = 0;
+
         try {
             let apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(currentQuery)}&type=video&key=${getActiveApiKey()}`;
             if (nextPageToken) apiUrl += `&pageToken=${nextPageToken}`;
@@ -416,7 +412,6 @@
                     }
                 }));
             }
-
             loadMoreBtn.style.display = nextPageToken ? 'inline-block' : 'none';
         } catch (e) {
             if (e.message.includes('quota') || e.message.includes('403')) {
@@ -577,7 +572,6 @@
         modal.classList.add('active');
         if (typeof gtag !== 'undefined') gtag('event', 'video_play', { video_id: videoId });
         
-        // שמירת היסטוריה אם המשתמש מחובר
         if (currentUser) {
             const card = document.getElementById(`card-${videoId}`);
             if (card) {
@@ -608,7 +602,6 @@
         const openGrid = document.getElementById('openGrid');
         const loadMoreHistoryBtn = document.getElementById('loadMoreHistoryBtn');
 
-        // אם זו לחיצה ראשונה על "היסטוריה" (ולא "טען עוד")
         if (!isLoadMore) {
             historyOffset = 0;
             document.getElementById('checkingSidebarWrapper').style.display = 'none';
@@ -616,19 +609,16 @@
             document.getElementById('blockedSection').style.display = 'none';
             document.getElementById('loadMoreBtn').style.display = 'none';
             
-            // הכותרת החדשה עם כפתור החזור
             document.getElementById('mainAreaTitle').innerHTML = `
                 <span>🕒</span> היסטוריית הצפיות שלי 
                 <button onclick="window.location.reload()" style="font-size: 12px; margin-right: 15px; padding: 4px 10px; cursor: pointer; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-family: inherit;">חזור לחיפוש 🔍</button>
             `;
             openGrid.innerHTML = '<div id="historyLoading" style="text-align:center; width:100%; color:#64748b; font-size:1.2em; padding: 20px;">טוען היסטוריה...</div>';
         } else {
-            // אם לחצו על "טען עוד" נשנה את הטקסט למשתמש
             loadMoreHistoryBtn.innerText = 'טוען...';
             loadMoreHistoryBtn.disabled = true;
         }
 
-        // חישוב מאיזה שורה עד איזה שורה למשוך ממסד הנתונים
         const from = historyOffset;
         const to = historyOffset + HISTORY_PAGE_SIZE - 1;
 
@@ -639,7 +629,6 @@
                 .order('watched_at', { ascending: false })
                 .range(from, to);
 
-            // מחיקת טקסט הטעינה בלחיצה הראשונה
             if (!isLoadMore) {
                 const loadingEl = document.getElementById('historyLoading');
                 if (loadingEl) loadingEl.remove();
@@ -660,7 +649,6 @@
                 return;
             }
 
-            // ציור הסרטונים החדשים על המסך
             data.forEach(v => {
                 const card = document.createElement('div');
                 card.className = 'video-card clickable';
@@ -681,10 +669,8 @@
                 openGrid.appendChild(card);
             });
 
-            // עדכון הזיכרון לפעם הבאה שילחצו "טען עוד"
             historyOffset += data.length;
             
-            // האם יש עוד היסטוריה למשוך? 
             if (data.length === HISTORY_PAGE_SIZE) {
                 loadMoreHistoryBtn.style.display = 'inline-block';
             } else {
@@ -694,12 +680,10 @@
         } catch (err) {
             console.error("Critical error in history processing:", err);
         } finally {
-            // החזרת הכפתור למצב לחיץ
             loadMoreHistoryBtn.disabled = false;
             loadMoreHistoryBtn.innerText = 'טען היסטוריה ישנה יותר 🕒';
         }
     }
 </script>
-
 </body>
 </html>
