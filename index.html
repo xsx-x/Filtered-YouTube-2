@@ -186,7 +186,7 @@
 </div>
 
 <div class="header">
-    <h1>יו-טוב, חיפוש וידאו מסונן</h1>
+    <h1 onclick="window.location.reload()" style="cursor: pointer;">יו-טוב, חיפוש וידאו מסונן</h1>
     <p>מנוע חיפוש מסונן המבוסס על בדיקה בזמן אמת ועל מסד נתונים מצטבר</p>
 </div>
 
@@ -291,6 +291,7 @@
                 <div class="user-profile">
                     <img src="${userAvatar}" alt="Avatar">
                     <span>שלום, ${userName}</span>
+                    <button class="btn-history" style="background:#64748b;" onclick="window.location.reload()">🏠 בית</button>
                     <button class="btn-history" onclick="fetchAndShowHistory()">🕒 היסטוריית הצפיות שלי</button>
                     <button class="btn-logout" onclick="logout()">התנתק</button>
                 </div>
@@ -610,17 +611,22 @@
         const loadMoreHistoryBtn = document.getElementById('loadMoreHistoryBtn');
 
         // אם זו לחיצה ראשונה על "היסטוריה" (ולא "טען עוד")
-        if (!isLoadMore) {
-            historyOffset = 0; // איפוס העמוד
-            document.getElementById('checkingSidebarWrapper').style.display = 'none';
-            document.getElementById('mainContentArea').style.display = 'block';
-            document.getElementById('blockedSection').style.display = 'none';
-            document.getElementById('loadMoreBtn').style.display = 'none'; // הסתרת כפתור חיפוש
-            document.getElementById('mainAreaTitle').innerHTML = '<span>🕒</span> היסטוריית הצפיות שלי';
-            
-            openGrid.innerHTML = '<div id="historyLoading" style="text-align:center; width:100%; color:#64748b; font-size:1.2em; padding: 20px;">טוען היסטוריה משרתי המערכת...</div>';
-        } else {
-            // אם לחצו על "טען עוד" נשנה את הטקסט למשתמש
+    if (!isLoadMore) {
+        historyOffset = 0;
+        document.getElementById('checkingSidebarWrapper').style.display = 'none';
+        document.getElementById('mainContentArea').style.display = 'block';
+        document.getElementById('blockedSection').style.display = 'none';
+        document.getElementById('loadMoreBtn').style.display = 'none';
+        
+        // הכותרת החדשה עם כפתור החזור
+        document.getElementById('mainAreaTitle').innerHTML = `
+            <span>🕒</span> היסטוריית הצפיות שלי 
+            <button onclick="window.location.reload()" style="font-size: 12px; margin-right: 15px; padding: 4px 10px; cursor: pointer; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-family: inherit;">חזור לחיפוש 🔍</button>
+        `;
+        
+        openGrid.innerHTML = '<div id="historyLoading" style="text-align:center; width:100%; color:#64748b; font-size:1.2em; padding: 20px;">טוען היסטוריה...</div>';
+    }
+        // אם לחצו על "טען עוד" נשנה את הטקסט למשתמש
             loadMoreHistoryBtn.innerText = 'טוען...';
             loadMoreHistoryBtn.disabled = true;
         }
