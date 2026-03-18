@@ -340,13 +340,16 @@ function promptUserForKey() {
         isYTReady = true; 
     };
 
-    // זיהוי ראשוני של סוג הסינון
+// זיהוי ראשוני ומתקדם של סוג הסינון בעליית הדף
     async function initFilterDetection() {
         try {
-            await fetch('https://netfree.link/api/check-video?v=test', { mode: 'no-cors' });
+            // ניסיון לגשת לכתובת פנימית שקיימת רק בנטפרי
+            await fetch('http://netfree.link/api/user', { mode: 'no-cors', cache: 'no-store' });
             detectedFilter = 'NetFree';
+            console.log("זוהה משתמש נטפרי - מפעיל מצב סופר-מהיר!");
         } catch (e) {
             detectedFilter = 'Other';
+            console.log("לא זוהה נטפרי - מפעיל מצב בדיקת נגן מלאה.");
         }
     }
     initFilterDetection();
@@ -407,12 +410,29 @@ function promptUserForKey() {
                 await Promise.all(chunk.map(async (v) => {
                     const videoId = v.id.videoId;
                     const title = v.snippet.title;
+
+                    // שלב 1: בדיקה מול מסד הנתונים
                     const dbStatus = await checkGlobalIndex(videoId);
-                    if (dbStatus === 'blocked') return finalizeStatus(videoId, false, title, false);
-                    if (dbStatus === 'open') return finalizeStatus(videoId, true, title, false);
+                    if (dbStatus === 'blocked') return finalizeStatus(videoId, 'blocked', title, false);
+                    if (dbStatus === 'open') return finalizeStatus(videoId, 'open', title, false);
+
+                    // שלב 2: סינון תמונה מהיר
                     const isImageOpen = await quickImageCheck(videoId);
-                    if (!isImageOpen) return finalizeStatus(videoId, false, title, true);
-                    await deepPlayerCheck(videoId, title);
+
+                    // שלב 3: לוגיקה חכמה לפי סוג הסינון
+                    if (detectedFilter === 'NetFree') {
+                        if (isImageOpen) {
+                            return finalizeStatus(videoId, 'open', title, true); // פתוח!
+                        } else {
+                            // בנטפרי - אם התמונה חסומה, זה חסום או טרם נבדק
+                            // אנחנו לא שומרים למסד נתונים כדי לא ללכלך אותו ב"לא נבדק"
+                            return finalizeStatus(videoId, 'netfree_pending', title, false); 
+                        }
+                    } else {
+                        // סינונים אחרים (אתרוג, רימון וכו') - ממשיכים לבדיקת נגן עמוקה
+                        if (!isImageOpen) return finalizeStatus(videoId, 'blocked', title, true);
+                        await deepPlayerCheck(videoId, title);
+                    }
                 }));
             }
 
@@ -494,42 +514,58 @@ function promptUserForKey() {
         });
     }
 
-    function finalizeStatus(videoId, isOpen, title, shouldSaveToDB) {
-        videoCache[videoId] = isOpen;
+    function finalizeStatus(videoId, status, title, shouldSaveToDB) {
+        // המרת true/false ישנים לטקסט, לתמיכה לאחור
+        if (status === true) status = 'open';
+        if (status === false) status = 'blocked';
+
+        videoCache[videoId] = status;
         
         const card = document.getElementById(`card-${videoId}`);
         const tag = document.getElementById(`status-${videoId}`);
         if (!card || !tag) return;
 
-        if (isOpen) {
+        if (status === 'open') {
             openVideosInCurrentBatch++;
             tag.innerText = "פתוח";
             tag.className = "status-tag status-open";
             card.classList.add('clickable');
             
-            // הוספת החץ היפה על התמונה
             const thumbContainer = card.querySelector('.thumb-container');
             if(!thumbContainer.querySelector('.play-overlay')) {
                 const playIcon = document.createElement('div');
                 playIcon.className = 'play-overlay';
-                playIcon.innerHTML = '&#9658;'; // סמל של Play
+                playIcon.innerHTML = '&#9658;'; 
                 thumbContainer.appendChild(playIcon);
             }
             
             document.getElementById('openGrid').appendChild(card);
             card.onclick = () => openPlayerModal(videoId);
+            if (shouldSaveToDB) saveToGlobalIndex(videoId, title, true);
+
+        } else if (status === 'netfree_pending') {
+            // תוספת מיוחדת למשתמשי נטפרי - "חסום או טרם נבדק"
+            tag.innerText = "חסום / טרם נבדק";
+            tag.style.background = "#e2e8f0"; // צבע אפור נייטרלי
+            tag.style.color = "#334155";
+            tag.style.border = "1px solid #cbd5e1";
+            
+            // אנחנו עושים את זה לחיץ! כדי שיוכלו לשלוח לבדיקה
+            card.classList.add('clickable');
+            document.getElementById('blockedRow').appendChild(card);
+            card.onclick = () => openPlayerModal(videoId);
+
         } else {
+            // חסום סופית לסינונים אחרים
             tag.innerText = "חסום";
             tag.className = "status-tag status-blocked";
             card.classList.remove('clickable');
             card.onclick = null;
             
             document.getElementById('blockedRow').appendChild(card);
+            if (shouldSaveToDB) saveToGlobalIndex(videoId, title, false);
         }
 
-        if (shouldSaveToDB) saveToGlobalIndex(videoId, title, isOpen);
-
-        // בדיקה האם הסתיימה הסריקה (הרשימה 'בבדיקה' ריקה לגמרי) - אם כן מסתירים את הסרגל צד
         const checkingList = document.getElementById('checkingList');
         if (checkingList.children.length === 0) {
             document.getElementById('checkingSidebarWrapper').style.display = 'none';
