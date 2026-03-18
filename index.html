@@ -265,22 +265,30 @@
 
     window.onYouTubeIframeAPIReady = function() { isYTReady = true; };
 
-    // ================= מערכת משתמשים (Auth) =================
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-        handleAuthChange(session);
-    });
+// ================= מערכת משתמשים (Auth) =================
+    
+    // המתנה לטעינת הדף (DOM) לפני בדיקת התחברות
+    document.addEventListener('DOMContentLoaded', () => {
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            handleAuthChange(session);
+        });
 
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
-        handleAuthChange(session);
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+            handleAuthChange(session);
+        });
     });
 
     function handleAuthChange(session) {
         currentUser = session ? session.user : null;
         const authContainer = document.getElementById('authContainer');
         
+        // הגנה: אם האלמנט טרם נטען, אל תעשה כלום
+        if (!authContainer) return; 
+        
         if (currentUser) {
             const userName = currentUser.user_metadata.full_name || 'משתמש';
             const userAvatar = currentUser.user_metadata.avatar_url || 'https://www.gravatar.com/avatar/?d=mp';
+            
             authContainer.innerHTML = `
                 <div class="user-profile">
                     <img src="${userAvatar}" alt="Avatar">
@@ -303,13 +311,16 @@
     async function loginWithGoogle() {
         await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: window.location.href }
+            options: { 
+                // תיקון קריטי: שולח את הדומיין הנקי (origin) בלבד, ללא פרמטרים או טוקנים
+                redirectTo: window.location.origin 
+            }
         });
     }
 
     async function logout() {
         await supabaseClient.auth.signOut();
-        window.location.reload();
+        window.location.reload(); 
     }
 
     // ================= ניהול מפתחות חיפוש =================
