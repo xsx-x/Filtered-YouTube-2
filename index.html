@@ -244,6 +244,7 @@
     <input type="text" id="searchInput" placeholder="מה תרצה לחפש היום?" onkeypress="if(event.key === 'Enter') handleSearch(false)">
     <button id="searchBtn" onclick="handleSearch(false)">חפש עכשיו</button>
     <button id="loadMoreBtn" onclick="handleSearch(true)">טען עוד תוצאות</button>
+    <button id="historyBtn" onclick="showHistory()" style="background: #10b981;">היסטוריית צפיות 🕒</button>
 </div>
 
 <div class="layout-wrapper">
@@ -631,9 +632,75 @@ function promptUserForKey() {
         const container = document.getElementById('playerContainer');
         
         container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-        
         modal.classList.add('active');
+        
+        // --- קוד חדש: שמירת היסטוריית צפיות ---
+        saveToHistory(videoId);
+        
         if (typeof gtag !== 'undefined') gtag('event', 'video_play', { video_id: videoId });
+    }
+
+    // פונקציה חדשה ששומרת את הסרטון בזיכרון המקומי
+    function saveToHistory(videoId) {
+        // משיגים את הכותרת והתמונה מהכרטיסייה שכבר קיימת במסך
+        const card = document.getElementById(`card-${videoId}`);
+        if (!card) return;
+        const title = card.querySelector('h3').innerText;
+        const imgUrl = card.querySelector('img').src;
+
+        // שולפים את ההיסטוריה הקיימת (או יוצרים מערך ריק)
+        let history = JSON.parse(localStorage.getItem('yt_history')) || [];
+        
+        // מוחקים את הסרטון אם הוא כבר בהיסטוריה (כדי להקפיץ אותו להתחלה)
+        history = history.filter(v => v.id !== videoId);
+        
+        // דוחפים אותו לתחילת הרשימה
+        history.unshift({ id: videoId, title: title, img: imgUrl, date: new Date().toLocaleDateString() });
+        
+        // שומרים מקסימום 50 סרטונים אחרונים שלא יפוצץ את הזיכרון
+        if (history.length > 50) history.pop();
+        
+        // שומרים חזרה לדפדפן
+        localStorage.setItem('yt_history', JSON.stringify(history));
+    }
+    function showHistory() {
+        const history = JSON.parse(localStorage.getItem('yt_history')) || [];
+        
+        if (history.length === 0) {
+            alert("היסטוריית הצפיות שלך ריקה.");
+            return;
+        }
+
+        // ננקה את המסך המרכזי ונציג בו את ההיסטוריה
+        document.getElementById('checkingSidebarWrapper').style.display = 'none';
+        document.getElementById('mainContentArea').style.display = 'block';
+        document.getElementById('blockedRow').innerHTML = ''; // מנקה חסומים
+        document.querySelector('.blocked-section').style.display = 'none'; // מסתיר אזור חסומים
+        
+        document.querySelector('.open-section .section-title').innerHTML = '<span>🕒</span> היסטוריית הצפיות שלי';
+        
+        const openGrid = document.getElementById('openGrid');
+        openGrid.innerHTML = ''; // מנקה תוצאות חיפוש קודמות
+
+        // מצייר את הסרטונים מההיסטוריה
+        history.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'video-card clickable';
+            card.id = `card-${v.id}`;
+            card.onclick = () => openPlayerModal(v.id);
+            
+            card.innerHTML = `
+                <div class="status-tag status-open" style="background:#f3f4f6; color:#4b5563; border:none;">נצפה ב: ${v.date}</div>
+                <div class="thumb-container">
+                    <img src="${v.img}" loading="lazy">
+                    <div class="play-overlay">&#9658;</div>
+                </div>
+                <div class="card-content">
+                    <h3>${v.title}</h3>
+                </div>
+            `;
+            openGrid.appendChild(card);
+        });
     }
 
     function closePlayer(event, force = false) {
