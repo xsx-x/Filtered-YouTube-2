@@ -605,12 +605,11 @@
 
     // ================= הצגת היסטוריית צפיות (עם 'טען עוד') =================
     async function fetchAndShowHistory(isLoadMore = false) {
-        if (!currentUser) return;
-        
-        const openGrid = document.getElementById('openGrid');
-        const loadMoreHistoryBtn = document.getElementById('loadMoreHistoryBtn');
+    if (!currentUser) return;
+    const openGrid = document.getElementById('openGrid');
+    const loadMoreHistoryBtn = document.getElementById('loadMoreHistoryBtn');
 
-        // אם זו לחיצה ראשונה על "היסטוריה" (ולא "טען עוד")
+    // טיפול במצב של טעינה ראשונית (לא "טען עוד")
     if (!isLoadMore) {
         historyOffset = 0;
         document.getElementById('checkingSidebarWrapper').style.display = 'none';
@@ -618,45 +617,78 @@
         document.getElementById('blockedSection').style.display = 'none';
         document.getElementById('loadMoreBtn').style.display = 'none';
         
-        // הכותרת החדשה עם כפתור החזור
         document.getElementById('mainAreaTitle').innerHTML = `
             <span>🕒</span> היסטוריית הצפיות שלי 
             <button onclick="window.location.reload()" style="font-size: 12px; margin-right: 15px; padding: 4px 10px; cursor: pointer; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-family: inherit;">חזור לחיפוש 🔍</button>
         `;
-        
         openGrid.innerHTML = '<div id="historyLoading" style="text-align:center; width:100%; color:#64748b; font-size:1.2em; padding: 20px;">טוען היסטוריה...</div>';
-    }
+    } else {
         // אם לחצו על "טען עוד" נשנה את הטקסט למשתמש
-            loadMoreHistoryBtn.innerText = 'טוען...';
-            loadMoreHistoryBtn.disabled = true;
-        }
+        loadMoreHistoryBtn.innerText = 'טוען...';
+        loadMoreHistoryBtn.disabled = true;
     }
 
-        // חישוב מאיזה שורה עד איזה שורה למשוך ממסד הנתונים
-        const from = historyOffset;
-        const to = historyOffset + HISTORY_PAGE_SIZE - 1;
+    // חישוב טווח השורות למשיכה מ-Supabase
+    const from = historyOffset;
+    const to = historyOffset + HISTORY_PAGE_SIZE - 1;
 
+    try {
         const { data, error } = await supabaseClient
             .from('user_history')
             .select('*')
             .order('watched_at', { ascending: false })
-            .range(from, to); // <--- הפקודה שאומרת ל-Supabase איזה "עמוד" להביא
+            .range(from, to);
 
-        // מחיקת טקסט הטעינה בלחיצה הראשונה
-        if (!isLoadMore) {
-            const loadingEl = document.getElementById('historyLoading');
-            if (loadingEl) loadingEl.remove();
-        }
+        // הסרת הודעת הטעינה
+        const loadingEl = document.getElementById('historyLoading');
+        if (loadingEl) loadingEl.remove();
 
-        if (error) {
-            if (!isLoadMore) openGrid.innerHTML = '<div style="text-align:center; width:100%; color:red;">שגיאה בטעינת היסטוריה.</div>';
-            else alert("שגיאה בטעינת היסטוריה נוספת.");
-            
-            loadMoreHistoryBtn.disabled = false;
-            loadMoreHistoryBtn.innerText = 'טען היסטוריה ישנה יותר 🕒';
+        if (error) throw error;
+
+        if (!isLoadMore && (!data || data.length === 0)) {
+            openGrid.innerHTML = '<div style="text-align:center; width:100%; color:#64748b; padding: 40px;">לא נמצאה היסטוריית צפיות. חפש סרטון כדי להתחיל!</div>';
+            loadMoreHistoryBtn.style.display = 'none';
             return;
         }
 
+        // רינדור הכרטיסיות
+        data.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'video-card clickable';
+            card.onclick = () => openPlayerModal(v.video_id);
+            
+            const dateStr = new Date(v.watched_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
+            
+            card.innerHTML = `
+                <div class="status-tag status-history">נצפה ב: ${dateStr}</div>
+                <div class="thumb-container">
+                    <img src="${v.thumbnail_url}" loading="lazy">
+                    <div class="play-overlay">&#9658;</div>
+                </div>
+                <div class="card-content">
+                    <h3>${v.title}</h3>
+                </div>
+            `;
+            openGrid.appendChild(card);
+        });
+
+        // עדכון האופסט ובדיקה אם יש עוד דפים
+        historyOffset += data.length;
+        if (data.length === HISTORY_PAGE_SIZE) {
+            loadMoreHistoryBtn.style.display = 'inline-block';
+        } else {
+            loadMoreHistoryBtn.style.display = 'none';
+        }
+
+    } catch (err) {
+        console.error("History Error:", err);
+        if (!isLoadMore) openGrid.innerHTML = '<div style="text-align:center; width:100%; color:red;">שגיאה בטעינת היסטוריה.</div>';
+        else alert("שגיאה בטעינת היסטוריה נוספת.");
+    } finally {
+        loadMoreHistoryBtn.disabled = false;
+        loadMoreHistoryBtn.innerText = 'טען היסטוריה ישנה יותר 🕒';
+    }
+}
         if (!isLoadMore && data.length === 0) {
             openGrid.innerHTML = '<div style="text-align:center; width:100%; color:#64748b; padding: 40px;">לא נמצאה היסטוריית צפיות. חפש סרטון כדי להתחיל!</div>';
             loadMoreHistoryBtn.style.display = 'none';
